@@ -34,6 +34,7 @@ namespace ArgumentParser {
 
         Argument& Default(const std::variant<int32_t, std::string, bool>& default_value);
         Argument& MultiValue(size_t min_args_count = 0);
+        Argument& Positional();
 
         Argument& StoreValue(int32_t& value_storage);
         Argument& StoreValue(std::string& value_storage);
@@ -42,8 +43,9 @@ namespace ArgumentParser {
         Argument& StoreValues(std::vector<int32_t>& value_storage);
         Argument& StoreValues(std::vector<std::string>& value_storage);
 
-        void UpdateStorage() const;
         bool Check() const;
+        void UpdateStorage() const;
+        void TakePositionals(const std::vector<std::string>& positionals);
     private:
         ArgumentType type_;
 
@@ -60,6 +62,8 @@ namespace ArgumentParser {
         bool multi_value_;
         uint32_t min_args_count_;
         std::variant<std::vector<int32_t>*, std::vector<std::string>*, std::nullptr_t> multi_storage_;
+
+        bool takes_positional_;
     };
 
     class ArgParser {
@@ -94,5 +98,6 @@ namespace ArgumentParser {
         bool CheckOnAvailability(const Argument& arg) const;
         bool CheckValues() const;
         void UpdateStorages() const;
+        void TakePositionals();
     };
 }

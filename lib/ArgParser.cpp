@@ -15,6 +15,7 @@ ArgumentParser::Argument::Argument(const ArgumentType& type, char short_name, co
     , multi_value_(false)
     , min_args_count_(0)
     , multi_storage_(nullptr)
+    , takes_positional_(false)
 {}
 
 ArgumentParser::Argument::Argument(const ArgumentType& type, const std::string& full_name, const std::string& description)
@@ -27,6 +28,7 @@ ArgumentParser::Argument::Argument(const ArgumentType& type, const std::string& 
     , multi_value_(false)
     , min_args_count_(0)
     , multi_storage_(nullptr)
+    , takes_positional_(false)
 {}
 
 char ArgumentParser::Argument::GetShortName() const {
@@ -110,6 +112,12 @@ ArgumentParser::Argument& ArgumentParser::Argument::Default(const std::variant<i
 ArgumentParser::Argument& ArgumentParser::Argument::MultiValue(size_t min_args_count) {
     multi_value_ = true;
     min_args_count_ = min_args_count;
+
+    return *this;
+}
+
+ArgumentParser::Argument& ArgumentParser::Argument::Positional() {
+    takes_positional_ = true;
 
     return *this;
 }
@@ -215,6 +223,18 @@ void ArgumentParser::Argument::UpdateStorage() const {
     }
 }
 
+void ArgumentParser::Argument::TakePositionals(const std::vector<std::string>& positionals) {
+    if (!takes_positional_) {
+        return;
+    }
+
+    if (type_ == ArgumentType::kFlag) {
+        throw std::runtime_error("Flags cannot take positional arguments.");
+    }
+
+    values_ = positionals;
+}
+
 ArgumentParser::ArgParser::ArgParser(const std::string& parser_name)
     : parser_name_(parser_name)
 {}
@@ -285,6 +305,8 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
             positional_.emplace_back(args[i]);
         }
     }
+
+    TakePositionals();
 
     if (!CheckValues()) {
         return false;
@@ -430,5 +452,11 @@ bool ArgumentParser::ArgParser::CheckValues() const {
 void ArgumentParser::ArgParser::UpdateStorages() const {
     for (const auto& arg: arguments_) {
         arg.UpdateStorage();
+    }
+}
+
+void ArgumentParser::ArgParser::TakePositionals() {
+    for (ArgumentParser::Argument& arg: arguments_) {
+        arg.TakePositionals(positional_);
     }
 }
