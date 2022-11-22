@@ -46,6 +46,8 @@ namespace ArgumentParser {
         bool Check() const;
         void UpdateStorage() const;
         void TakePositionals(const std::vector<std::string>& positionals);
+
+        std::string Help() const;
     private:
         ArgumentType type_;
 
@@ -54,6 +56,7 @@ namespace ArgumentParser {
         std::string description_;
 
         std::vector<std::string> values_;
+        std::string default_value_;
         
         bool storage_awaken_;
 
@@ -86,6 +89,7 @@ namespace ArgumentParser {
 
         void AddHelp(char short_help, const std::string& full_help, const std::string& description = "");
         bool Help();
+        std::string HelpDescription();
     private:
         std::string parser_name_;
         

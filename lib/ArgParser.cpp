@@ -91,9 +91,15 @@ void ArgumentParser::Argument::AddValue(const std::string& value) {
 
 ArgumentParser::Argument& ArgumentParser::Argument::Default(const std::variant<int32_t, std::string, bool>& default_value) {
     if (type_ == ArgumentType::kInteger) {
-        values_ = {std::to_string(std::get<int32_t>(default_value))};
+        std::string temporary_value = std::to_string(std::get<int32_t>(default_value));
+
+        values_ = {temporary_value};
+        default_value_ = temporary_value;
     } else if (type_ == ArgumentType::kString) {
-        values_ = {std::get<std::string>(default_value)};
+        std::string temporary_value = std::get<std::string>(default_value);
+
+        values_ = {temporary_value};
+        default_value_ = temporary_value;
     } else {
         assert(type_ == ArgumentType::kFlag);
         
@@ -101,8 +107,10 @@ ArgumentParser::Argument& ArgumentParser::Argument::Default(const std::variant<i
 
         if (value) {
             values_ = {"1"};
+            default_value_ = "1";
         } else {
             values_ = {"0"};
+            default_value_ = "0";
         }
     }
 
@@ -235,8 +243,56 @@ void ArgumentParser::Argument::TakePositionals(const std::vector<std::string>& p
     values_ = positionals;
 }
 
+std::string ArgumentParser::Argument::Help() const {
+    std::string full_description;
+
+    if (short_name_ != '?') {
+        full_description += "-" + std::string(1, short_name_) + ", ";
+    } else {
+        full_description += "    ";
+    }
+
+    full_description += " --" + full_name_;
+
+    if (type_ != ArgumentType::kFlag) {
+        full_description += "=<";
+
+        if (type_ == ArgumentType::kInteger) {
+            full_description += "int>";
+        } else {
+            full_description += "string>";
+        }
+    }
+
+    full_description += ", ";
+    full_description += " " + description_;
+
+    if (multi_value_) {
+        full_description += " [repeated, min args = " + std::to_string(min_args_count_) + "]";
+    }
+
+    if (!default_value_.empty()) {
+        if (type_ == ArgumentType::kFlag) {
+            if (default_value_ == "1") {
+                full_description += " [default = true]";
+            }
+        } else {
+            full_description += " [default = " + default_value_ + "]";
+        }
+    }
+
+    if (takes_positional_) {
+        full_description += " [takes positional arguments]";
+    }
+
+    full_description += "\n";
+
+    return full_description;
+}
+
 ArgumentParser::ArgParser::ArgParser(const std::string& parser_name)
     : parser_name_(parser_name)
+    , short_help_('?')
     , help_called_(false)
 {}
 
@@ -441,7 +497,6 @@ void ArgumentParser::ArgParser::AddHelp(char short_help, const std::string& full
 bool ArgumentParser::ArgParser::Help() {
     help_of_all_parser_ += parser_name_ + "\n";
     help_of_all_parser_ += description_ + "\n";
-    help_of_all_parser_ += "\n";
 
     return help_called_;
 }
@@ -487,4 +542,27 @@ void ArgumentParser::ArgParser::TakePositionals() {
     for (ArgumentParser::Argument& arg: arguments_) {
         arg.TakePositionals(positional_);
     }
+}
+
+std::string ArgumentParser::ArgParser::HelpDescription() {
+    Help();
+
+    help_of_all_parser_ += "\n";
+
+    for (const auto& arg: arguments_) {
+        help_of_all_parser_ += arg.Help();
+    }
+
+    help_of_all_parser_ += "\n";
+
+    if (short_help_ != '?') {
+        help_of_all_parser_ += "-h,";
+    } else {
+        help_of_all_parser_ += "   ";
+    }
+
+    help_of_all_parser_ += " --" + full_help_;
+    help_of_all_parser_ += " Display this help and exit\n";
+
+    return help_of_all_parser_;
 }
