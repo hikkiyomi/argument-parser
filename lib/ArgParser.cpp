@@ -8,9 +8,11 @@ ArgumentParser::Argument::Argument(const ArgumentType& type, char short_name, co
     , short_name_(short_name)
     , full_name_(full_name)
     , description_(description)
-    , values_({})
-    , storage_(nullptr)
     , storage_awaken_(false)
+    , storage_(nullptr)
+    , multi_value_(false)
+    , min_args_count_(0)
+    , multi_storage_(nullptr)
 {}
 
 ArgumentParser::Argument::Argument(const ArgumentType& type, const std::string& full_name, const std::string& description)
@@ -18,9 +20,11 @@ ArgumentParser::Argument::Argument(const ArgumentType& type, const std::string& 
     , short_name_('?')
     , full_name_(full_name)
     , description_(description)
-    , values_({})
-    , storage_(nullptr)
     , storage_awaken_(false)
+    , storage_(nullptr)
+    , multi_value_(false)
+    , min_args_count_(0)
+    , multi_storage_(nullptr)
 {}
 
 char ArgumentParser::Argument::GetShortName() const {
@@ -35,32 +39,24 @@ std::string ArgumentParser::Argument::GetDescription() const {
     return description_;
 }
 
-std::string ArgumentParser::Argument::GetStringValue() const {
-    if (values_.size() != 1) {
-        throw std::runtime_error("Argument " + full_name_ + " does not contain exactly one value.");
-    }
-
+std::string ArgumentParser::Argument::GetStringValue(size_t index) const {
     if (type_ != ArgumentType::kString) {
         throw std::runtime_error("Argument " + full_name_ + " does not contain string type.");
     }
 
-    return values_[0];
+    return values_[index];
 }
 
-int32_t ArgumentParser::Argument::GetIntValue() const {
-    if (values_.size() != 1) {
-        throw std::runtime_error("Argument " + full_name_ + " does not contain exactly one value.");
-    }
-
+int32_t ArgumentParser::Argument::GetIntValue(size_t index) const {
     if (type_ != ArgumentType::kInteger) {
         throw std::runtime_error("Argument " + full_name_ + " does not containt integer type.");
     }
 
-    return std::stoi(values_[0]);
+    return std::stoi(values_[index]);
 }
 
 bool ArgumentParser::Argument::Check() const {
-    return !values_.empty();
+    return values_.size() > min_args_count_;
 }
 
 void ArgumentParser::Argument::AddValue(const std::string& value) {
@@ -83,6 +79,13 @@ ArgumentParser::Argument& ArgumentParser::Argument::Default(const std::variant<i
             values_ = {"0"};
         }
     }
+
+    return *this;
+}
+
+ArgumentParser::Argument& ArgumentParser::Argument::MultiValue(size_t min_args_count) {
+    multi_value_ = true;
+    min_args_count_ = min_args_count;
 
     return *this;
 }
@@ -111,10 +114,32 @@ ArgumentParser::Argument& ArgumentParser::Argument::StoreValue(std::string& valu
 
 ArgumentParser::Argument& ArgumentParser::Argument::StoreValue(bool& value_storage) {
     if (type_ != ArgumentType::kFlag) {
-        throw std::runtime_error("Cannot put bool value into non-flag variable.");
+        throw std::runtime_error("Cannot put boolean value into non-flag variable.");
     }
 
     storage_ = &value_storage;
+    storage_awaken_ = true;
+
+    return *this;
+}
+
+ArgumentParser::Argument& ArgumentParser::Argument::StoreValues(std::vector<int32_t>& value_storage) {
+    if (type_ != ArgumentType::kInteger) {
+        throw std::runtime_error("Cannot put integer value into non-integer variable.");
+    }
+
+    multi_storage_ = &value_storage;
+    storage_awaken_ = true;
+
+    return *this;
+}
+
+ArgumentParser::Argument& ArgumentParser::Argument::StoreValues(std::vector<std::string>& value_storage) {
+    if (type_ != ArgumentType::kString) {
+        throw std::runtime_error("Cannot put string value into non-string variable.");
+    }
+
+    multi_storage_ = &value_storage;
     storage_awaken_ = true;
 
     return *this;
@@ -126,22 +151,42 @@ void ArgumentParser::Argument::UpdateStorage() const {
     }
 
     if (type_ == ArgumentType::kInteger) {
-        int32_t* storage_pointer = std::get<int32_t*>(storage_);
-        *storage_pointer = std::stoi(values_[0]);
+        if (multi_value_) {
+            std::vector<int32_t>* storage_pointer = std::get<std::vector<int32_t>*>(multi_storage_);
+            
+            for (const auto& value: values_) {
+                (*storage_pointer).emplace_back(std::stoi(value));
+            }
+        } else {
+            int32_t* storage_pointer = std::get<int32_t*>(storage_);
+            
+            *storage_pointer = std::stoi(values_[0]);
+        }
     } else if (type_ == ArgumentType::kString) {
-        std::string* storage_pointer = std::get<std::string*>(storage_);
-        *storage_pointer = values_[0];
+        if (multi_value_) {
+            std::vector<std::string>* storage_pointer = std::get<std::vector<std::string>*>(multi_storage_);
+
+            *storage_pointer = values_;
+        } else {
+            std::string* storage_pointer = std::get<std::string*>(storage_);
+        
+            *storage_pointer = values_[0];
+        }
     } else {
         assert(type_ == ArgumentType::kFlag);
         
-        bool* storage_pointer = std::get<bool*>(storage_);
-        
-        if (values_[0] == "0") {
-            *storage_pointer = false;
+        if (multi_value_) {
+            throw std::runtime_error("Flag cannot have multiple values.");
         } else {
-            assert(values_[0] == "1");
+            bool* storage_pointer = std::get<bool*>(storage_);
+        
+            if (values_[0] == "0") {
+                *storage_pointer = false;
+            } else {
+                assert(values_[0] == "1");
 
-            *storage_pointer = true;
+                *storage_pointer = true;
+            }
         }
     }
 }
@@ -256,10 +301,10 @@ ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(const std
     return arguments_.back();
 }
 
-std::string ArgumentParser::ArgParser::GetStringValue(const std::string& full_name) {
+std::string ArgumentParser::ArgParser::GetStringValue(const std::string& full_name, size_t index) {
     const Argument& arg = arguments_[index_by_full_name_[full_name]];
 
-    return arg.GetStringValue();
+    return arg.GetStringValue(index);
 }
 
 ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(char short_name, const std::string& full_name) {
@@ -289,10 +334,10 @@ ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(const std::s
     return arguments_.back();
 }
 
-int32_t ArgumentParser::ArgParser::GetIntValue(const std::string& full_name) {
+int32_t ArgumentParser::ArgParser::GetIntValue(const std::string& full_name, size_t index) {
     const Argument& arg = arguments_[index_by_full_name_[full_name]];
 
-    return arg.GetIntValue();
+    return arg.GetIntValue(index);
 }
 
 bool ArgumentParser::ArgParser::CheckOnAvailability(const Argument& arg) const {

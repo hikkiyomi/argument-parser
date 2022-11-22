@@ -23,18 +23,22 @@ namespace ArgumentParser {
         std::string GetFullName() const;
         std::string GetDescription() const;
         
-        std::string GetStringValue() const;
-        int32_t GetIntValue() const;
+        std::string GetStringValue(size_t index = 0) const;
+        int32_t GetIntValue(size_t index = 0) const;
 
         void AddValue(const std::string&);
 
         Argument& Default(const std::variant<int32_t, std::string, bool>& default_value);
+        Argument& MultiValue(size_t min_args_count = 0);
 
         Argument& StoreValue(int32_t& value_storage);
         Argument& StoreValue(std::string& value_storage);
         Argument& StoreValue(bool& value_storage);
-        void UpdateStorage() const;
+        
+        Argument& StoreValues(std::vector<int32_t>& value_storage);
+        Argument& StoreValues(std::vector<std::string>& value_storage);
 
+        void UpdateStorage() const;
         bool Check() const;
     private:
         ArgumentType type_;
@@ -44,8 +48,14 @@ namespace ArgumentParser {
         std::string description_;
 
         std::vector<std::string> values_;
-        std::variant<int32_t*, std::string*, bool*, std::nullptr_t> storage_;
+        
         bool storage_awaken_;
+
+        std::variant<int32_t*, std::string*, bool*, std::nullptr_t> storage_;
+
+        bool multi_value_;
+        uint32_t min_args_count_;
+        std::variant<std::vector<int32_t>*, std::vector<std::string>*, std::nullptr_t> multi_storage_;
     };
 
     class ArgParser {
@@ -56,11 +66,11 @@ namespace ArgumentParser {
 
         Argument& AddStringArgument(char short_name, const std::string& full_name);
         Argument& AddStringArgument(const std::string& full_name);
-        std::string GetStringValue(const std::string& full_name);
+        std::string GetStringValue(const std::string& full_name, size_t index = 0);
 
         Argument& AddIntArgument(char short_name, const std::string& full_name);
         Argument& AddIntArgument(const std::string& full_name);
-        int32_t GetIntValue(const std::string& full_name);
+        int32_t GetIntValue(const std::string& full_name, size_t index = 0);
     private:
         std::string parser_name_;
 
