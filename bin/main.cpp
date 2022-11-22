@@ -1,15 +1,33 @@
-#include "lib/ArgParser.h"
+#include "../lib/ArgParser.h"
 
+#include <cassert>
 #include <functional>
 #include <iostream>
+#include <iterator>
 #include <numeric>
+#include <string>
+#include <sstream>
 
 struct Options {
     bool sum = false;
     bool mult = false;
 };
 
+using namespace ArgumentParser;
+
+std::vector<std::string> SplitString(const std::string& str) {
+    std::istringstream iss(str);
+
+    return {std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>()};
+}
+
 int main(int argc, char** argv) {
+    ArgParser parser("My Parser");
+    parser.AddFlag('f', "flag1");
+
+    assert(parser.Parse(SplitString("app --flag1")));
+    assert(parser.GetFlag("flag1"));
+
     // Options opt;
     // std::vector<int> values;
 

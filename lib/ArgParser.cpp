@@ -3,6 +3,8 @@
 #include <cassert>
 #include <stdexcept>
 
+ArgumentParser::Argument::Argument() {}
+
 ArgumentParser::Argument::Argument(const ArgumentType& type, char short_name, const std::string& full_name, const std::string& description)
     : type_(type)
     , short_name_(short_name)
@@ -39,6 +41,10 @@ std::string ArgumentParser::Argument::GetDescription() const {
     return description_;
 }
 
+ArgumentParser::ArgumentType ArgumentParser::Argument::GetType() const {
+    return type_;
+}
+
 std::string ArgumentParser::Argument::GetStringValue(size_t index) const {
     if (type_ != ArgumentType::kString) {
         throw std::runtime_error("Argument " + full_name_ + " does not contain string type.");
@@ -49,10 +55,22 @@ std::string ArgumentParser::Argument::GetStringValue(size_t index) const {
 
 int32_t ArgumentParser::Argument::GetIntValue(size_t index) const {
     if (type_ != ArgumentType::kInteger) {
-        throw std::runtime_error("Argument " + full_name_ + " does not containt integer type.");
+        throw std::runtime_error("Argument " + full_name_ + " does not contain integer type.");
     }
 
     return std::stoi(values_[index]);
+}
+
+bool ArgumentParser::Argument::GetFlag() const {
+    if (type_ != ArgumentType::kFlag) {
+        throw std::runtime_error("Argument " + full_name_ + " does not contain boolean type.");
+    }
+
+    if (values_.size() != 1) {
+        throw std::runtime_error("Flag " + full_name_ + " does not have a value.");
+    }
+
+    return (values_[0] == "1" ? true : false);
 }
 
 bool ArgumentParser::Argument::Check() const {
@@ -60,6 +78,12 @@ bool ArgumentParser::Argument::Check() const {
 }
 
 void ArgumentParser::Argument::AddValue(const std::string& value) {
+    if (type_ == ArgumentType::kFlag && values_.size() == 1) {
+        values_[0] = value;
+
+        return;
+    }
+
     values_.emplace_back(value);
 }
 
@@ -215,6 +239,10 @@ std::vector<std::string> ParseMonoOption(const std::string& arg) {
         result.push_back(buffer);
     }
 
+    if (result.size() < 2) {
+        result.emplace_back("");
+    }
+
     return result;
 }
 
@@ -237,28 +265,21 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
 
             std::vector<std::string> params;
 
-            if (i == args.size() - 1 || args[i + 1][0] == '-') {
-                params = ParseMonoOption(args[i]);
-            } else {
-                params = {args[i], args[i + 1]};
+            params = ParseMonoOption(args[i]);
+
+            if (params[1].empty()) {
+                params[1] = "1";
             }
 
             if (full_name_argument) {
                 params[0] = params[0].substr(2);
-
-                size_t index = index_by_full_name_[params[0]];
-
-                arguments_[index].AddValue(params[1]);
+                arguments_[GetIndex(params[0])].AddValue(params[1]);
             } else {
                 params[0] = params[0].substr(1);
 
-                if (params[0].size() != 1) {
-                    throw std::runtime_error("Wrong argument: -" + params[0]);
+                for (auto short_name: params[0]) {
+                    arguments_[GetIndex(short_name)].AddValue(params[1]);
                 }
-
-                size_t index = index_by_short_name_[params[0][0]];
-
-                arguments_[index].AddValue(params[1]);
             }
         } else {
             positional_.emplace_back(args[i]);
@@ -302,7 +323,7 @@ ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(const std
 }
 
 std::string ArgumentParser::ArgParser::GetStringValue(const std::string& full_name, size_t index) {
-    const Argument& arg = arguments_[index_by_full_name_[full_name]];
+    const Argument& arg = arguments_[GetIndex(full_name)];
 
     return arg.GetStringValue(index);
 }
@@ -334,10 +355,61 @@ ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(const std::s
     return arguments_.back();
 }
 
-int32_t ArgumentParser::ArgParser::GetIntValue(const std::string& full_name, size_t index) {
-    const Argument& arg = arguments_[index_by_full_name_[full_name]];
+int32_t ArgumentParser::ArgParser::GetIntValue(const std::string& full_name, size_t index) {    
+    const Argument& arg = arguments_[GetIndex(full_name)];
 
     return arg.GetIntValue(index);
+}
+
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddFlag(char short_name, const std::string& full_name) {
+    arguments_.emplace_back(ArgumentType::kFlag, short_name, full_name);
+
+    if (!CheckOnAvailability(arguments_.back())) {
+        throw std::runtime_error("There is a collision between two arguments.\n"
+                                 "Use only unique short and full names.\n");
+    }
+
+    index_by_short_name_[short_name] = arguments_.size() - 1;
+    index_by_full_name_[full_name] = arguments_.size() - 1;
+    arguments_.back().Default(false);
+
+    return arguments_.back();
+}
+
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddFlag(const std::string& full_name) {
+    arguments_.emplace_back(ArgumentType::kFlag, full_name);
+
+    if (!CheckOnAvailability(arguments_.back())) {
+        throw std::runtime_error("There is a collision between two arguments.\n"
+                                 "Use only unique short and full names.\n");
+    }
+
+    index_by_full_name_[full_name] = arguments_.size() - 1;
+    arguments_.back().Default(false);
+
+    return arguments_.back();
+}
+
+bool ArgumentParser::ArgParser::GetFlag(const std::string& full_name) {
+    const Argument& arg = arguments_[GetIndex(full_name)];
+
+    return arg.GetFlag();
+}
+
+size_t ArgumentParser::ArgParser::GetIndex(char short_name) {
+    if (index_by_short_name_.find(short_name) == index_by_short_name_.end()) {
+        throw std::runtime_error("No such argument as " + std::string(1, short_name));
+    }
+
+    return index_by_short_name_[short_name];
+}
+
+size_t ArgumentParser::ArgParser::GetIndex(const std::string& full_name) {
+    if (index_by_full_name_.find(full_name) == index_by_full_name_.end()) {
+        throw std::runtime_error("No such argument as " + full_name);
+    }
+    
+    return index_by_full_name_[full_name];
 }
 
 bool ArgumentParser::ArgParser::CheckOnAvailability(const Argument& arg) const {

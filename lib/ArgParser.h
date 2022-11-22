@@ -16,15 +16,19 @@ namespace ArgumentParser {
 
     class Argument {
     public:
+        Argument();
+
         Argument(const ArgumentType& type, char short_name, const std::string& full_name, const std::string& description = "");
         Argument(const ArgumentType& type, const std::string& full_name, const std::string& description = "");
 
         char GetShortName() const;
         std::string GetFullName() const;
         std::string GetDescription() const;
+        ArgumentType GetType() const;
         
         std::string GetStringValue(size_t index = 0) const;
         int32_t GetIntValue(size_t index = 0) const;
+        bool GetFlag() const;
 
         void AddValue(const std::string&);
 
@@ -71,6 +75,10 @@ namespace ArgumentParser {
         Argument& AddIntArgument(char short_name, const std::string& full_name);
         Argument& AddIntArgument(const std::string& full_name);
         int32_t GetIntValue(const std::string& full_name, size_t index = 0);
+
+        Argument& AddFlag(char short_name, const std::string& full_name);
+        Argument& AddFlag(const std::string& full_name);
+        bool GetFlag(const std::string& full_name);
     private:
         std::string parser_name_;
 
@@ -79,6 +87,9 @@ namespace ArgumentParser {
 
         std::unordered_map<char, size_t> index_by_short_name_;
         std::unordered_map<std::string, size_t> index_by_full_name_;
+
+        size_t GetIndex(char short_name);
+        size_t GetIndex(const std::string& full_name);
 
         bool CheckOnAvailability(const Argument& arg) const;
         bool CheckValues() const;
