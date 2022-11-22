@@ -237,6 +237,7 @@ void ArgumentParser::Argument::TakePositionals(const std::vector<std::string>& p
 
 ArgumentParser::ArgParser::ArgParser(const std::string& parser_name)
     : parser_name_(parser_name)
+    , help_called_(false)
 {}
 
 std::vector<std::string> ParseMonoOption(const std::string& arg) {
@@ -293,11 +294,24 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
 
             if (full_name_argument) {
                 params[0] = params[0].substr(2);
+
+                if (params[0] == full_help_) {
+                    help_called_ = true;
+
+                    return true;
+                }
+
                 arguments_[GetIndex(params[0])].AddValue(params[1]);
             } else {
                 params[0] = params[0].substr(1);
 
                 for (auto short_name: params[0]) {
+                    if (short_name == short_help_) {
+                        help_called_ = true;
+
+                        return true;
+                    }
+
                     arguments_[GetIndex(short_name)].AddValue(params[1]);
                 }
             }
@@ -317,8 +331,8 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
     return true;
 }
 
-ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(char short_name, const std::string& full_name) {
-    arguments_.emplace_back(ArgumentType::kString, short_name, full_name);
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(char short_name, const std::string& full_name, const std::string& description) {
+    arguments_.emplace_back(ArgumentType::kString, short_name, full_name, description);
 
     if (!CheckOnAvailability(arguments_.back())) {
         throw std::runtime_error("There is a collision between two arguments.\n"
@@ -331,8 +345,8 @@ ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(char shor
     return arguments_.back();
 }
 
-ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(const std::string& full_name) {
-    arguments_.emplace_back(ArgumentType::kString, full_name);
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(const std::string& full_name, const std::string& description) {
+    arguments_.emplace_back(ArgumentType::kString, full_name, description);
 
     if (!CheckOnAvailability(arguments_.back())) {
         throw std::runtime_error("There is a collision between two arguments.\n"
@@ -350,8 +364,8 @@ std::string ArgumentParser::ArgParser::GetStringValue(const std::string& full_na
     return arg.GetStringValue(index);
 }
 
-ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(char short_name, const std::string& full_name) {
-    arguments_.emplace_back(ArgumentType::kInteger, short_name, full_name);
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(char short_name, const std::string& full_name, const std::string& description) {
+    arguments_.emplace_back(ArgumentType::kInteger, short_name, full_name, description);
 
     if (!CheckOnAvailability(arguments_.back())) {
         throw std::runtime_error("There is a collision between two arguments.\n"
@@ -364,8 +378,8 @@ ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(char short_n
     return arguments_.back();
 }
 
-ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(const std::string& full_name) {
-    arguments_.emplace_back(ArgumentType::kInteger, full_name);
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddIntArgument(const std::string& full_name, const std::string& description) {
+    arguments_.emplace_back(ArgumentType::kInteger, full_name, description);
 
     if (!CheckOnAvailability(arguments_.back())) {
         throw std::runtime_error("There is a collision between two arguments.\n"
@@ -383,8 +397,8 @@ int32_t ArgumentParser::ArgParser::GetIntValue(const std::string& full_name, siz
     return arg.GetIntValue(index);
 }
 
-ArgumentParser::Argument& ArgumentParser::ArgParser::AddFlag(char short_name, const std::string& full_name) {
-    arguments_.emplace_back(ArgumentType::kFlag, short_name, full_name);
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddFlag(char short_name, const std::string& full_name, const std::string& description) {
+    arguments_.emplace_back(ArgumentType::kFlag, short_name, full_name, description);
 
     if (!CheckOnAvailability(arguments_.back())) {
         throw std::runtime_error("There is a collision between two arguments.\n"
@@ -398,8 +412,8 @@ ArgumentParser::Argument& ArgumentParser::ArgParser::AddFlag(char short_name, co
     return arguments_.back();
 }
 
-ArgumentParser::Argument& ArgumentParser::ArgParser::AddFlag(const std::string& full_name) {
-    arguments_.emplace_back(ArgumentType::kFlag, full_name);
+ArgumentParser::Argument& ArgumentParser::ArgParser::AddFlag(const std::string& full_name, const std::string& description) {
+    arguments_.emplace_back(ArgumentType::kFlag, full_name, description);
 
     if (!CheckOnAvailability(arguments_.back())) {
         throw std::runtime_error("There is a collision between two arguments.\n"
@@ -416,6 +430,20 @@ bool ArgumentParser::ArgParser::GetFlag(const std::string& full_name) {
     const Argument& arg = arguments_[GetIndex(full_name)];
 
     return arg.GetFlag();
+}
+
+void ArgumentParser::ArgParser::AddHelp(char short_help, const std::string& full_help, const std::string& description) {
+    short_help_ = short_help;
+    full_help_ = full_help;
+    description_ = description;
+}
+
+bool ArgumentParser::ArgParser::Help() {
+    help_of_all_parser_ += parser_name_ + "\n";
+    help_of_all_parser_ += description_ + "\n";
+    help_of_all_parser_ += "\n";
+
+    return help_called_;
 }
 
 size_t ArgumentParser::ArgParser::GetIndex(char short_name) {

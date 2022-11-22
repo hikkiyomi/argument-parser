@@ -72,19 +72,29 @@ namespace ArgumentParser {
 
         bool Parse(const std::vector<std::string>& args);
 
-        Argument& AddStringArgument(char short_name, const std::string& full_name);
-        Argument& AddStringArgument(const std::string& full_name);
+        Argument& AddStringArgument(char short_name, const std::string& full_name, const std::string& description = "");
+        Argument& AddStringArgument(const std::string& full_name, const std::string& description = "");
         std::string GetStringValue(const std::string& full_name, size_t index = 0);
 
-        Argument& AddIntArgument(char short_name, const std::string& full_name);
-        Argument& AddIntArgument(const std::string& full_name);
+        Argument& AddIntArgument(char short_name, const std::string& full_name, const std::string& description = "");
+        Argument& AddIntArgument(const std::string& full_name, const std::string& description = "");
         int32_t GetIntValue(const std::string& full_name, size_t index = 0);
 
-        Argument& AddFlag(char short_name, const std::string& full_name);
-        Argument& AddFlag(const std::string& full_name);
+        Argument& AddFlag(char short_name, const std::string& full_name, const std::string& description = "");
+        Argument& AddFlag(const std::string& full_name, const std::string& description = "");
         bool GetFlag(const std::string& full_name);
+
+        void AddHelp(char short_help, const std::string& full_help, const std::string& description = "");
+        bool Help();
     private:
         std::string parser_name_;
+        
+        bool help_called_;
+        char short_help_;
+        std::string full_help_;
+        std::string description_;
+
+        std::string help_of_all_parser_;
 
         std::vector<Argument> arguments_;
         std::vector<std::string> positional_;
