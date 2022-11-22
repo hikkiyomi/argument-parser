@@ -387,6 +387,16 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
     return true;
 }
 
+bool ArgumentParser::ArgParser::Parse(int argc, char** argv) {
+    std::vector<std::string> args;
+
+    for (int i = 0; i < argc; ++i) {
+        args.push_back(std::string(argv[i]));
+    }
+
+    return Parse(args);
+}
+
 ArgumentParser::Argument& ArgumentParser::ArgParser::AddStringArgument(char short_name, const std::string& full_name, const std::string& description) {
     arguments_.emplace_back(ArgumentType::kString, short_name, full_name, description);
 

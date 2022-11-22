@@ -74,6 +74,7 @@ namespace ArgumentParser {
         ArgParser(const std::string& parser_name);
 
         bool Parse(const std::vector<std::string>& args);
+        bool Parse(int argc, char** argv);
 
         Argument& AddStringArgument(char short_name, const std::string& full_name, const std::string& description = "");
         Argument& AddStringArgument(const std::string& full_name, const std::string& description = "");
