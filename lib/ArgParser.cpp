@@ -317,7 +317,11 @@ std::vector<std::string> ParseMonoOption(const std::string& arg) {
     }
 
     if (result.size() < 2) {
-        result.emplace_back("");
+        if (equal_sign_seen) {
+            throw std::runtime_error(arg + " is an incorrect parameter.");
+        } else {
+            result.emplace_back("");
+        }
     }
 
     return result;
