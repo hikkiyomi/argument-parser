@@ -345,10 +345,12 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
             }
 
             std::vector<std::string> params;
+            bool is_flag = false;
 
             params = ParseMonoOption(args[i]);
 
             if (params[1].empty()) {
+                is_flag = true;
                 params[1] = "1";
             }
 
@@ -361,7 +363,13 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
                     return true;
                 }
 
-                arguments_[GetIndex(params[0])].AddValue(params[1]);
+                size_t index = GetIndex(params[0]);
+
+                if (is_flag && arguments_[index].GetType() != ArgumentType::kFlag) {
+                    throw std::runtime_error("Argument " + arguments_[index].GetFullName() + " is not a flag.");
+                }
+
+                arguments_[index].AddValue(params[1]);
             } else {
                 params[0] = params[0].substr(1);
 
@@ -372,7 +380,13 @@ bool ArgumentParser::ArgParser::Parse(const std::vector<std::string>& args) {
                         return true;
                     }
 
-                    arguments_[GetIndex(short_name)].AddValue(params[1]);
+                    size_t index = GetIndex(short_name);
+
+                    if (is_flag && arguments_[index].GetType() != ArgumentType::kFlag) {
+                        throw std::runtime_error("Argument " + arguments_[index].GetFullName() + " is not a flag.");
+                    }
+
+                    arguments_[index].AddValue(params[1]);
                 }
             }
         } else {
